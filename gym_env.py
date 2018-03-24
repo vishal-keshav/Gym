@@ -15,7 +15,6 @@ class gym_env(object):
         self.observation_space = self.env.observation_space
 		#Output the observation to monitor
         self.env = gym.wrappers.Monitor(self.env, "./", force = True)
-        #.env = gym.wrappers.Monitor(self.env, ./, force=True)
 
     def reset(self):
         """
