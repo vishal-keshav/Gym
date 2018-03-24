@@ -17,11 +17,15 @@ def main():
         observation = env.reset()
         current_step = 0
         #print(observation.shape)
+
         while True:
+            observation = observation.reshape([1, 210, 160, 3])
+            print(observation.shape)
             action = DQN.predict_action(observation)
             #action = env.get_action_space()
             #print(action.sample())
             new_observation, reward, done, _ = env.next(action)
+            new_observation = new_observation.reshape([1, 210, 160, 3])
             DQN.update_local_net(observation, action, reward, new_observation)
             if current_step%param["learn_step"] == 0:
                 DQN.update_global_net()
@@ -29,6 +33,7 @@ def main():
                 print("*************")
                 break
             current_step = current_step + 1
+            observation = new_observation
             #print(observation)
 
 if __name__ == "__main__":
