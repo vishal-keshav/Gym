@@ -28,7 +28,7 @@ class gym_env(object):
 		Given an action, step up the environment
         """
         if not self.env.action_space.contains(action):
-            print("Invalid action")
+            print("Invalid action", action)
         self.env.render()
 
         observation, reward, done, info = self.env.step(action)
