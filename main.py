@@ -30,7 +30,8 @@ def main():
             new_observation = new_observation.reshape([1, 210, 160, 3])
             reward = np.array([reward])
             action = action.reshape([1,])
-            DQN.update_local_net(observation, action, reward, new_observation)
+            #DQN.update_local_net(observation, action, reward, new_observation)
+            DQN.store_transition(observation, action, reward, new_observation)
             if current_step%param["learn_step"] == 0:
                 DQN.update_global_net()
             if done:
@@ -38,7 +39,6 @@ def main():
                 break
             current_step = current_step + 1
             observation = new_observation
-            #print(observation)
 
 if __name__ == "__main__":
     main()

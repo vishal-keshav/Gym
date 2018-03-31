@@ -12,6 +12,12 @@ class deep_q_network(object):
         self.input_dim = [None, input_dim[0], input_dim[1], input_dim[2]]
         self.output_dim = [None, output_dim]
         self.env = env
+        self.mem_index = 0
+        print("DQN created with following param:")
+        print("Local network learning rate ", lr)
+        print("Bellman equation gamma ", g)
+        print("Network input dimention ", self.input_dim)
+        print("Network output dimention ", self.output_dim)
 
     def initialize(self):
         print("Initializing Q networks...")
@@ -19,6 +25,12 @@ class deep_q_network(object):
         self.reward = tf.placeholder(tf.float32, [None, ])
         self.action = tf.placeholder(tf.int32, [None, ])
         self.next_observation = tf.placeholder(tf.float32, self.input_dim)
+        #Episodic memory initialization
+        self.observation_memory = np.zeros([8, self.input_dim[1], self.input_dim[2], self.input_dim[3]])
+        self.next_observation_mem = np.zeros([8, self.input_dim[1], self.input_dim[2], self.input_dim[3]])
+        self.action_mem = np.zeros([8, ])
+        self.reward_mem = np.zeros([8, ])
+
         with tf.variable_scope('local_net'):
             self.local_net = tf_util.build_graph(self.observation)
         with tf.variable_scope('global_net'):
@@ -37,15 +49,28 @@ class deep_q_network(object):
         self.param_copy_op = [tf.assign(dest, src) for dest, src in zip(global_params, local_params)]
         self.sess = tf.Session()
         self.sess.run(tf.global_variables_initializer())
-
+        print("Q networks initialized.")
 
     def predict_action(self,s):
         #return self.env.action_space.sample()
         local_q_value = self.sess.run(self.local_net, feed_dict={self.observation: s})
-        return np.argmax(local_q_value)
+        pred = np.argmax(local_q_value)
+        print("Action predicted from local network ", pred)
+        return pred
+
+    def store_transition(self, s, a, r, _s):
+        print("Storing the transition")
+        self.observation_memory[self.mem_index] = s
+        self.action_mem[self.mem_index] = a
+        self.reward_mem[self.mem_index] = r
+        self.next_observation_mem[self.mem_index] = _s
+        if self.mem_index == 7:
+            self.update_local_net(self.observation_memory, self.action_mem,
+                            self.reward_mem, self.next_observation_mem)
+        self.mem_index = (self.mem_index + 1)%8
 
     def update_local_net(self,s, a, r, _s):
-        #print("Updating local net")
+        print("Updating local net")
         self.sess.run(self.train_ops, feed_dict = {
             self.observation: s,
             self.action: a,
@@ -55,6 +80,6 @@ class deep_q_network(object):
         return
 
     def update_global_net(self):
-        #print("Updating global net")
+        print("Updating global net")
         self.sess.run(self.param_copy_op)
         return
