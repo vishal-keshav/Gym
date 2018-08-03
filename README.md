@@ -1,6 +1,15 @@
 # Gym
 
-This repository constains detailed description of three major RL algorithms
-along with code that implement the ideas in simplest manner.
+Major Reinforcement Algorithms are implemented and benchmarked.
+Code is modular and simplistic, can be easily tinkered around
+to change characteristics of environment, model and hyperparameters.
 
-Benchmark on different Gym environment can be found in respective folders
+Following algorithms are implemented:
+* Deep-Q network (Implemented)
+* Deep deterministic policy gradient (In progress)
+* Actro-Critic variants (In progress)
+
+A detailed description of algorithm can be found in respective directories
+
+## Bechmarks
+Will be updated soon.
