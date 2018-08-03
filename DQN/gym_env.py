@@ -11,6 +11,7 @@ class gym_env(object):
     def __init__(self, env_name):
         self.env = gym.make(env_name)
         self.env.seed(10)
+        self.observation_shape = self.env.reset().shape
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
 		#Output the observation to monitor
@@ -22,6 +23,9 @@ class gym_env(object):
         """
         observation = self.env.reset()
         return observation
+
+    def get_observation_shape(self):
+        self.observation_shape
 
     def next(self,action):
         """
