@@ -1,13 +1,12 @@
 """
 A gym environment should have these capabilities
 1. make(env_name): makes and returns an object
-2. gym objects should have reset() function that returns the observation
-3. gym object should have action_space and observation_space
+2. env objects should have reset() function that returns the observation
+3. env object should have action_space and observation_space
     Action space should contain "contains" check
 4. A wrapper object which will have Monitor function
 5. A render function
 """
-
 
 import gym
 import numpy as np
