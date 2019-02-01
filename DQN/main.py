@@ -28,40 +28,43 @@ def argument_parser():
     args = parser.parse_args()
     return args
 
+class train_condition:
+    def __init__(self, steps):
+        self.steps = steps
+
+    def __call__(self):
+        if self.steps != 0:
+            self.steps = self.steps -1
+            return True
+        else:
+            return False
+
 def main():
     args = argument_parser()
     env = gym_env.gym_env(args)
     observation_shape = [None] + list(env.get_observation_shape())
     action_shape = [None] + [env.get_action_space().n]
-    """param = {'learning_rate': 0.001, 'gamma': 0.5}
-    learning_step = 32
-    input_shape = list(env.get_observation_shape())
-    input_shape = [None] + input_shape
-    output_shape = [None, 6]
-    DQN = deep_q_network.deep_q_network(env, param)
-    DQN.initialize()
-
-    for e in range(2):
-        observation = env.reset()
-        current_step = 0
-        #print(observation.shape)
-
+    DQN = deep_q_network.deep_q_network(env, observation_shape,
+                                        action_shape, args)
+    condition = train_condition(args.max_train_steps)
+    observation = env.reset_environment()
+    while condition():
+        observation = env.reset_environment()
         while True:
-            observation = observation.reshape([1, 210, 160, 3])
-            action = DQN.predict_action(observation)
+            #observation = observation.reshape([1, 210, 160, 3])
+            action = DQN.predict_action(np.expand_dims(observation, axis=0))
 
-            new_observation, reward, done, _ = env.next(action)
-            new_observation = new_observation.reshape([1, 210, 160, 3])
-            reward = np.array([reward])
-            action = action.reshape([1,])
-            DQN.store_transition(observation, action, reward, new_observation)
-            if current_step%learning_step == 0:
+            new_observation, reward, done, _ = env.take_action(np.squeeze(action))
+            #new_observation = new_observation.reshape([1, 210, 160, 3])
+            DQN.train_on_transition(observation, np.squeeze(action),
+                                    np.squeeze(reward), new_observation)
+            """if current_step%learning_step == 0:
                 DQN.update_global_net()
             if done:
                 print("*************")
                 break
-            current_step = current_step + 1
-            observation = new_observation"""
+            current_step = current_step + 1"""
+            observation = new_observation
 
 if __name__ == "__main__":
     main()

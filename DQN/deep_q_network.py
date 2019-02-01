@@ -37,8 +37,8 @@ class Buffer:
 
     ## This should be called only if data_set_is_ready
     def get_buffer(self):
-        return (self.current_observation, self.action,
-               self.next_observation, self.reward)
+        return (np.array(self.current_observation), np.array(self.action),
+               np.array(self.next_observation), np.array(self.reward))
 
 """
 Important note: our Q network does not take state and actions as inputs, instead
@@ -77,7 +77,8 @@ class deep_q_network:
 
         # For defining loss, actual label y
         # This is define by r + max(global_net_out(next_observation))
-        self.reward = tf.placeholder(tf.float32, shape = [None, 1])
+        self.reward = tf.placeholder(tf.float32, shape = [None],
+                                     name = 'reward')
         global_output = self.model_global['output']
         self.next_observation = self.model_global['input']
         max_value = self.reward+self.gamma*tf.reduce_max(global_output, axis=1)
@@ -86,7 +87,7 @@ class deep_q_network:
 
         # For defining loss, the output from local_net is also required
         # This requires an action and the current state, see the notes above
-        self.action = tf.placeholder(tf.int32, [None, 1])
+        self.action = tf.placeholder(tf.int32, shape = [None], name = 'action')
         self.current_observation = self.model_local['input']
         predicted_q_values = self.model_local['output']
         # From this, we want to have that value which corresponds to the action
@@ -110,7 +111,7 @@ class deep_q_network:
         ## scope to global_net scope
         local_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES,
                                          scope = 'local_net')
-        global_params = tf.get_collection(tf.graphkeys.GLOBAL_VARIABLES,
+        global_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES,
                                           scope = 'global_net')
         self.assign_op = [tf.assign(dest, src)
                             for dest, src in zip(global_params, local_params)]
@@ -120,7 +121,7 @@ class deep_q_network:
         print("Q networks initialized.")
 
     def predict_action(self, s):
-        local_q_value = self.sess.run(self.local_net,
+        local_q_value = self.sess.run(self.model_local['output'],
                         feed_dict={self.current_observation: s})
         pred = np.argmax(local_q_value)
         return pred
@@ -131,12 +132,12 @@ class deep_q_network:
             buffer = self.buffer.get_buffer()
             self.update_local_net(buffer)
 
-    def update_local_net(self, s, a, r, _s):
+    def update_local_net(self, buffer):
         self.sess.run(self.train_ops, feed_dict = {
-            self.current_observation: s,
-            self.action: a,
-            self.reward: r,
-            self.next_observation: _s,
+            self.current_observation: buffer[0],
+            self.action: buffer[1],
+            self.reward: buffer[3],
+            self.next_observation: buffer[2],
         })
         return
 
