@@ -51,7 +51,7 @@ class gym_env:
         return observation, reward, done, info
     ################## Non-essential functions ####################
     def get_observation_shape(self):
-        self.observation_shape
+        return self.observation_shape
 
     def get_action_space(self):
         return self.action_space

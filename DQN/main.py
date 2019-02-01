@@ -21,7 +21,7 @@ def argument_parser():
                     help = 'number of episodes to train the agent')
     parser.add_argument('--monitor_training', default = True, type = bool,
                     help = 'display the training environment')
-    parser.add_argument('--lr_rate', default = 0.001, type = 'float',
+    parser.add_argument('--lr_rate', default = 0.001, type = float,
                     help = 'learning rate for training the local DQN network')
     parser.add_argument('--discount_factor', default = 0.5, type = float,
                     help = 'discount factor for reward calculation')
@@ -30,11 +30,10 @@ def argument_parser():
 
 def main():
     args = argument_parser()
-    
-
-
-    env = gym_env.gym_env('SpaceInvaders-v0')
-    param = {'learning_rate': 0.001, 'gamma': 0.5}
+    env = gym_env.gym_env(args)
+    observation_shape = [None] + list(env.get_observation_shape())
+    action_shape = [None] + [env.get_action_space().n]
+    """param = {'learning_rate': 0.001, 'gamma': 0.5}
     learning_step = 32
     input_shape = list(env.get_observation_shape())
     input_shape = [None] + input_shape
@@ -62,7 +61,7 @@ def main():
                 print("*************")
                 break
             current_step = current_step + 1
-            observation = new_observation
+            observation = new_observation"""
 
 if __name__ == "__main__":
     main()

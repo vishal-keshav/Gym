@@ -1,6 +1,8 @@
 import tensorflow as tf
 import numpy as np
 
+import model_builder
+
 class Buffer:
     def __init__(self, batch_size, observation_shape):
         self.batch_size = batch_size
