@@ -15,7 +15,7 @@ class SimpleNet:
         self.input = tf.placeholder(tf.float32, shape = self.input_shape,
                                     name = 'input_tensor')
         self._build_network()
-        self.output = tf.identity(self.network['prob'], name = 'output_tensor')
+        self.output = tf.identity(self.network['logits'], name = 'output_tensor')
         self.model = {'input': self.input, 'output': self.output}
         return self.model
 
@@ -77,6 +77,7 @@ class SimpleNet:
 
 
 def variable_summaries(var):
+    return
     with tf.name_scope('summaries'):
         mean = tf.reduce_mean(var)
     with tf.name_scope('stddev'):

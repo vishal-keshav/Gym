@@ -1,3 +1,5 @@
+import os
+
 import tensorflow as tf
 import numpy as np
 
@@ -40,6 +42,10 @@ class Buffer:
         return (np.array(self.current_observation), np.array(self.action),
                np.array(self.next_observation), np.array(self.reward))
 
+def mk_dir(path):
+    if not os.path.isdir(path):
+        os.mkdir(path)
+
 """
 Important note: our Q network does not take state and actions as inputs, instead
 we input only states and require output to be of action_space dimention. Each of
@@ -55,6 +61,8 @@ class deep_q_network:
         self.env = env
         self.observation_shape = observation_shape
         self.action_shape = action_shape
+        self.args = args
+        self.nr_episode = 0
         # Buffer is initialized at the construction
         self.buffer = Buffer(args.buffer_size, observation_shape)
         self._build_training_graph()
@@ -82,6 +90,7 @@ class deep_q_network:
         global_output = self.model_global['output']
         self.next_observation = self.model_global['input']
         max_value = self.reward+self.gamma*tf.reduce_max(global_output, axis=1)
+        tf.summary.scalar('cummulative_reward', tf.reduce_mean(max_value))
         # We want to stop the gradient flow when minimizing using this variable
         self.label = tf.stop_gradient(max_value)
 
@@ -118,6 +127,16 @@ class deep_q_network:
 
         self.sess = tf.Session()
         self.sess.run(tf.global_variables_initializer())
+        self.chk_name = os.path.join(self.args.log_path, 'model.ckpt')
+        self.writer = tf.summary.FileWriter(self.args.log_path)
+        self.summary_op = tf.summary.merge_all()
+        mk_dir(self.args.log_path)
+        self.saver = tf.train.Saver()
+        if tf.train.checkpoint_exists(self.chk_name) and self.args.restore:
+            self.saver.restore(self.sess, self.chk_name)
+            print("session restored")
+        else:
+            self.writer.add_graph(self.sess.graph)
         print("Q networks initialized.")
 
     def predict_action(self, s):
@@ -135,8 +154,8 @@ class deep_q_network:
     def update_local_net(self, buffer):
         self.sess.run(self.train_ops, feed_dict = {
             self.current_observation: buffer[0],
-            self.action: buffer[1],
-            self.reward: buffer[3],
+            self.action: np.squeeze(buffer[1]),
+            self.reward: np.squeeze(buffer[3]),
             self.next_observation: buffer[2],
         })
         return
@@ -144,3 +163,19 @@ class deep_q_network:
     def update_global_net(self):
         self.sess.run(self.assign_op)
         return
+
+    def write_summary(self):
+        buffer = self.buffer.get_buffer()
+        feed_dict = {
+            self.current_observation: buffer[0],
+            self.action: np.squeeze(buffer[1]),
+            self.reward: np.squeeze(buffer[3]),
+            self.next_observation: buffer[2],
+        }
+        summary = self.sess.run(self.summary_op, feed_dict = feed_dict)
+        self.writer.add_summary(summary, self.nr_episode)
+        self.nr_episode = self.nr_episode + 1
+
+    def save_checkpoint(self):
+        save_path = self.saver.save(self.sess, self.chk_name)
+        print("Checkpoint saved.")
