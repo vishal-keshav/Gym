@@ -1,4 +1,5 @@
 import os
+import random
 
 import tensorflow as tf
 import numpy as np
@@ -143,6 +144,10 @@ class deep_q_network:
         local_q_value = self.sess.run(self.model_local['output'],
                         feed_dict={self.current_observation: s})
         pred = np.argmax(local_q_value)
+        if not self.args.test and random.random() < self.args.exploration_prob:
+            pred = np.random.randint(self.action_shape[1],
+                                     size=len(local_q_value))
+            print(pred)
         return pred
 
     def train_on_transition(self, s, a, r, _s):
