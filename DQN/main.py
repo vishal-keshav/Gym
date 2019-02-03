@@ -19,7 +19,7 @@ def argument_parser():
                     help = 'maximum number of observation, -1 for infinity')
     parser.add_argument('--nr_episodes', default = 500, type = int,
                     help = 'number of episodes to train the agent')
-    parser.add_argument('--monitor_training', default = True, type = bool,
+    parser.add_argument('--monitor_training', default = False, type = bool,
                     help = 'display the training environment')
     parser.add_argument('--lr_rate', default = 0.0005, type = float,
                     help = 'learning rate for training the local DQN network')
@@ -31,7 +31,7 @@ def argument_parser():
                     help = 'Weather to restore the checkpoint or not')
     parser.add_argument('--checkpoint_freq', default = 100, type = int,
                     help = 'Number of episodes after which to save checkpoints')
-    parser.add_argument('--test', default = True, type = bool,
+    parser.add_argument('--test', default = False, type = bool,
                     help = 'Testing the agent')
     args = parser.parse_args()
     return args

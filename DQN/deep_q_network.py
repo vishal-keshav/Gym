@@ -147,7 +147,6 @@ class deep_q_network:
         if not self.args.test and random.random() < self.args.exploration_prob:
             pred = np.random.randint(self.action_shape[1],
                                      size=len(local_q_value))
-            print(pred)
         return pred
 
     def train_on_transition(self, s, a, r, _s):
