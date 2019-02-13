@@ -15,12 +15,12 @@ class SimpleNet:
         self.input = tf.placeholder(tf.float32, shape = self.input_shape,
                                     name = 'input_tensor')
         self._build_network()
-        self.output = tf.identity(self.network['logits'], name = 'output_tensor')
+        self.output = tf.identity(self.network['logits'], name ='output_tensor')
         self.model = {'input': self.input, 'output': self.output}
         return self.model
 
     def _build_network(self):
-        with tf.name_scope("layer_1"):
+        """with tf.name_scope("layer_1"):
             W_conv1 = self.weight_variable([3, 3, self.input_shape[-1], 8])
             b_conv1 = self.bias_variable([8])
             self.network['h_conv1'] = tf.nn.relu(self.conv2d(
@@ -32,23 +32,26 @@ class SimpleNet:
             b_conv2 = self.bias_variable([16])
             conv = self.conv2d(self.network['h_pool1'], W_conv2)
             self.network['h_conv2'] = tf.nn.relu( conv + b_conv2 )
-            self.network['h_pool2'] = self.max_pool_2x2(self.network['h_conv2'])
+            self.network['h_pool2'] = self.max_pool_2x2(self.network['h_conv2'])"""
+
+        with tf.name_scope("layer_1"):
+            shape = self.input_shape[-1]
+            W_fc1 = self.weight_variable([shape, 64])
+            b_fc1 = self.bias_variable([64])
+            self.network['h_fc1'] = tf.nn.relu(tf.matmul(
+                                        self.input, W_fc1) + b_fc1)
+        with tf.name_scope("layer_2"):
+            W_fc2 = self.weight_variable([64, 64])
+            b_fc2 = self.bias_variable([64])
+            self.network['h_fc2'] = tf.nn.relu(tf.matmul(
+                                        self.network['h_fc1'], W_fc2) + b_fc2)
 
         with tf.name_scope("layer_3"):
-            shape = int(np.prod(self.network['h_pool2'].get_shape()[1:]))
-            W_fc1 = self.weight_variable([shape, 32])
-            b_fc1 = self.bias_variable([32])
-            self.network['h_pool2_flat'] = tf.reshape(
-                                            self.network['h_pool2'],[-1, shape])
-            self.network['h_fc1'] = tf.nn.relu(tf.matmul(
-                                self.network['h_pool2_flat'], W_fc1) + b_fc1)
-
-        with tf.name_scope("layer_4"):
-            W_fc2 = self.weight_variable([32, self.output_shape[-1]])
-            b_fc2 = self.bias_variable([self.output_shape[-1]])
+            shape = self.output_shape[-1]
+            W_fc3 = self.weight_variable([64, shape])
+            b_fc3 = self.bias_variable([shape])
             self.network['logits'] = tf.matmul(
-                                        self.network['h_fc1'], W_fc2) + b_fc2
-            self.network['prob'] = tf.nn.softmax(self.network['logits'])
+                                        self.network['h_fc2'], W_fc3) + b_fc3
 
     def weight_variable(self, shape):
         with tf.name_scope("weight"):
@@ -64,7 +67,7 @@ class SimpleNet:
             variable_summaries(var)
         return var
 
-    def conv2d(self, x, W):
+    """def conv2d(self, x, W):
         with tf.name_scope("conv"):
             conv = tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
         return conv
@@ -73,7 +76,7 @@ class SimpleNet:
         with tf.name_scope("max_pool"):
             pool = tf.nn.max_pool(x, ksize=[1, 2, 2, 1],
                             strides=[1, 2, 2, 1], padding='SAME')
-        return pool
+        return pool"""
 
 
 def variable_summaries(var):

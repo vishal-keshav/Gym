@@ -1,5 +1,7 @@
 import os
 import random
+from collections import deque
+from collections import namedtuple
 
 import tensorflow as tf
 import numpy as np
@@ -7,32 +9,24 @@ import numpy as np
 import model_builder
 
 class Buffer:
-    def __init__(self, batch_size, observation_shape):
+    def __init__(self, buffer_size, batch_size):
         self.batch_size = batch_size
-        self.observation_shape = observation_shape
-        self.action_shape = 1
-        self.reward_shape = 1
+        self.buffer_size = buffer_size
+        self.buffer_data = namedtuple("buffer_datum", field_names =
+                                     ["current_state", "action","next_state",
+                                      "reward", "is_terminal"])
         self.can_train = False
         self.initialize_buffer()
 
     def initialize_buffer(self):
-        observation_memory_shape = [self.batch_size, self.observation_shape[1],
-                            self.observation_shape[2],self.observation_shape[3]]
-        self.current_observation = np.zeros(observation_memory_shape)
-        self.next_observation = np.zeros(observation_memory_shape)
-        self.action = np.zeros([self.batch_size, self.action_shape])
-        self.reward = np.zeros([self.batch_size, self.reward_shape])
-        self.index = 0
+        self.buffer_memory = deque(maxlen = self.buffer_size)
 
-    def set_buffer(self, current_observation, action, next_observation, reward):
+    def set_buffer(self, current_state, action, next_state, reward,is_terminal):
         self.can_train = False
-        self.current_observation[self.index] = current_observation
-        self.action[self.index] = action
-        self.next_observation[self.index] = next_observation
-        self.reward[self.index] = reward
-        self.index = self.index + 1
-        if self.index >= self.batch_size:
-            self.index = 0
+        data = self.buffer_data(current_state, action, next_state, reward,
+                    int(is_terminal))
+        self.buffer_memory.append(data)
+        if len(self.buffer_memory) >= self.batch_size:
             self.can_train = True
 
     def data_set_is_ready(self):
@@ -40,8 +34,13 @@ class Buffer:
 
     ## This should be called only if data_set_is_ready
     def get_buffer(self):
-        return (np.array(self.current_observation), np.array(self.action),
-               np.array(self.next_observation), np.array(self.reward))
+        random_data = random.sample(self.buffer_memory, self.batch_size)
+        current_state = np.array([data.current_state for data in random_data])
+        action = np.array([data.action for data in random_data])
+        next_state = np.array([data.next_state for data in random_data])
+        reward = np.array([data.reward for data in random_data])
+        is_terminal = np.array([data.is_terminal for data in random_data])
+        return (current_state, action, next_state, reward, is_terminal)
 
 def mk_dir(path):
     if not os.path.isdir(path):
@@ -57,16 +56,22 @@ we need not to execute the Q network actions_space number of times. Thank you!!!
 
 class deep_q_network:
     def __init__(self, env, observation_shape, action_shape, args):
+        # Params for learning the policy and calculate reward
         self.learning_rate = args.lr_rate
         self.gamma = args.discount_factor
+        self.weighting_factor = args.weighting_factor
+        # Envoroment parameters
         self.env = env
         self.observation_shape = observation_shape
         self.action_shape = action_shape
         self.args = args
         self.nr_episode = 0
+        self.nr_step = 0
+        self.update_frequency = args.local_update_frequency
         # Buffer is initialized at the construction
-        self.buffer = Buffer(args.buffer_size, observation_shape)
+        self.buffer = Buffer(args.buffer_size, args.batch_size)
         self._build_training_graph()
+        self.sess.graph.finalize()
 
     def _build_training_graph(self):
         inference_graph_builder = model_builder.SimpleNet(
@@ -88,15 +93,19 @@ class deep_q_network:
         # This is define by r + max(global_net_out(next_observation))
         self.reward = tf.placeholder(tf.float32, shape = [None],
                                      name = 'reward')
+        self.is_terminal = tf.placeholder(tf.float32, shape = [None],
+                                     name = 'is_terminal')
         global_output = self.model_global['output']
         self.next_observation = self.model_global['input']
-        max_value = self.reward+self.gamma*tf.reduce_max(global_output, axis=1)
-        tf.summary.scalar('cummulative_reward', tf.reduce_mean(max_value))
+        max_value = self.reward+self.gamma*(1-self.is_terminal)* \
+                                tf.reduce_max(global_output, axis=1)
+        #tf.summary.scalar('cummulative_reward', tf.reduce_mean(max_value))
         # We want to stop the gradient flow when minimizing using this variable
         self.label = tf.stop_gradient(max_value)
 
         # For defining loss, the output from local_net is also required
         # This requires an action and the current state, see the notes above
+        # Actions is integral, staring from 0 (not one-hot encoded)
         self.action = tf.placeholder(tf.int32, shape = [None], name = 'action')
         self.current_observation = self.model_local['input']
         predicted_q_values = self.model_local['output']
@@ -105,8 +114,7 @@ class deep_q_network:
         # want to index the actions predicted by max of global_net
         # We need indexing vector like [[0, max_actions], [1, max_action], ...]
         action_index = tf.stack([tf.range(tf.shape(self.action)[0],
-                                           dtype=tf.int32),
-                                  self.action], axis=1)
+                                           dtype=tf.int32),self.action], axis=1)
         self.prediction =tf.gather_nd(params=predicted_q_values,
                                       indices=action_index)
 
@@ -123,8 +131,9 @@ class deep_q_network:
                                          scope = 'local_net')
         global_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES,
                                           scope = 'global_net')
-        self.assign_op = [tf.assign(dest, src)
-                            for dest, src in zip(global_params, local_params)]
+        self.assign_op = [tf.assign(dest, self.weighting_factor*src +
+                                    (1-self.weighting_factor)*dest)
+                          for dest, src in zip(global_params, local_params)]
 
         self.sess = tf.Session()
         self.sess.run(tf.global_variables_initializer())
@@ -140,28 +149,35 @@ class deep_q_network:
             self.writer.add_graph(self.sess.graph)
         print("Q networks initialized.")
 
-    def predict_action(self, s):
+    # Follow epsilon-greedy method
+    def predict_action(self, s, epsilon):
         local_q_value = self.sess.run(self.model_local['output'],
                         feed_dict={self.current_observation: s})
         pred = np.argmax(local_q_value)
-        if not self.args.test and random.random() < self.args.exploration_prob:
+        if random.random() > epsilon:
+            pred = np.argmax(local_q_value)
+        else:
             pred = np.random.randint(self.action_shape[1],
                                      size=len(local_q_value))
         return pred
 
-    def train_on_transition(self, s, a, r, _s):
-        self.buffer.set_buffer(s, a, _s, r)
-        if self.buffer.data_set_is_ready():
-            buffer = self.buffer.get_buffer()
-            self.update_local_net(buffer)
+    def train_on_transition(self, s, a, r, _s, t):
+        self.nr_step = self.nr_step + 1
+        self.buffer.set_buffer(s, a, _s, r, t)
+        train_cond = (self.nr_step % self.update_frequency == 0)
+        if self.buffer.data_set_is_ready() and train_cond:
+            s, a, s_, r, t = self.buffer.get_buffer()
+            self.update_local_net(s, a, s_, r, t)
 
-    def update_local_net(self, buffer):
+    def update_local_net(self, s, a, s_, r, t):
         self.sess.run(self.train_ops, feed_dict = {
-            self.current_observation: buffer[0],
-            self.action: np.squeeze(buffer[1]),
-            self.reward: np.squeeze(buffer[3]),
-            self.next_observation: buffer[2],
+            self.current_observation: s,
+            self.action: np.squeeze(a),
+            self.reward: np.squeeze(r),
+            self.next_observation: s_,
+            self.is_terminal: t,
         })
+        #print("updating local")
         return
 
     def update_global_net(self):
@@ -169,12 +185,13 @@ class deep_q_network:
         return
 
     def write_summary(self):
-        buffer = self.buffer.get_buffer()
+        s, a, s_, r, t = self.buffer.get_buffer()
         feed_dict = {
-            self.current_observation: buffer[0],
-            self.action: np.squeeze(buffer[1]),
-            self.reward: np.squeeze(buffer[3]),
-            self.next_observation: buffer[2],
+            self.current_observation: s,
+            self.action: np.squeeze(a),
+            self.reward: np.squeeze(r),
+            self.next_observation: s_,
+            self.is_terminal: t,
         }
         summary = self.sess.run(self.summary_op, feed_dict = feed_dict)
         self.writer.add_summary(summary, self.nr_episode)
