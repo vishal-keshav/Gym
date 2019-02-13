@@ -88,7 +88,6 @@ class sample_env:
         if self._out_of_bound(state):
             return -INF
         if self._dollar_state(state):
-            print(positive_reward)
             return positive_reward
         if self._block_state(state):
             return -INF
