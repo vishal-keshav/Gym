@@ -20,6 +20,7 @@ class SimpleNet:
         return self.model
 
     def _build_network(self):
+        # Uncomment the conv layers if environment requires so
         """with tf.name_scope("layer_1"):
             W_conv1 = self.weight_variable([3, 3, self.input_shape[-1], 8])
             b_conv1 = self.bias_variable([8])
@@ -67,7 +68,7 @@ class SimpleNet:
             variable_summaries(var)
         return var
 
-    """def conv2d(self, x, W):
+    def conv2d(self, x, W):
         with tf.name_scope("conv"):
             conv = tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
         return conv
@@ -76,11 +77,10 @@ class SimpleNet:
         with tf.name_scope("max_pool"):
             pool = tf.nn.max_pool(x, ksize=[1, 2, 2, 1],
                             strides=[1, 2, 2, 1], padding='SAME')
-        return pool"""
+        return pool
 
 
 def variable_summaries(var):
-    return
     with tf.name_scope('summaries'):
         mean = tf.reduce_mean(var)
     with tf.name_scope('stddev'):

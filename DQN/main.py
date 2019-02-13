@@ -44,7 +44,7 @@ def argument_parser():
                     help = 'Path to save the logs and trained weights')
     parser.add_argument('--restore', default = True, type = bool,
                     help = 'Weather to restore the checkpoint or not')
-    parser.add_argument('--checkpoint_freq', default = 1000, type = int,
+    parser.add_argument('--checkpoint_freq', default = 200, type = int,
                     help = 'Number of episodes after which to save checkpoints')
     parser.add_argument('--test', default = False, type = bool,
                     help = 'Testing the agent')
@@ -77,8 +77,10 @@ def main():
 
     while args.test:
         observation = env.reset_environment()
+        epsilon = args.max_explore_prob
         while True:
-            action = DQN.predict_action(np.expand_dims(observation, axis=0))
+            action = DQN.predict_action(np.expand_dims(observation, axis=0),
+                                        epsilon)
             new_observation, reward, done, _=env.take_action(np.squeeze(action))
             if done:
                 break
@@ -103,18 +105,15 @@ def main():
             DQN.train_on_transition(observation, np.squeeze(action),
                                     np.squeeze(reward), new_observation, done)
             if global_update_condition():
-                #print("updating global")
                 DQN.update_global_net()
             if done:
-                #print(cummulative_reward)
                 scores.append(cummulative_reward)
-                #DQN.write_summary()
+                DQN.write_summary()
                 break
             observation = new_observation
-        #if checkpoint_save_condition():
-        #    DQN.save_checkpoint()
+        if checkpoint_save_condition():
+            DQN.save_checkpoint()
         epsilon = max(epsilon*args.explore_prob_decay, args.min_explore_prob)
-        print(epsilon)
         print("Episode " + str(episode) + "  avg_score " + str(np.mean(scores)))
 
 if __name__ == "__main__":
