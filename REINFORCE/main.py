@@ -86,10 +86,10 @@ def main():
     non_train_condition = update_condition(args.nr_episodes)
     checkpoint_save_condition = update_condition(args.checkpoint_freq)
 
-    scores_window = deque(maxlen=100)
-    i_episode = 0
+    scores = deque(maxlen=100)
+    episode = 0
     while not non_train_condition():
-        i_episode = i_episode + 1
+        episode = episode + 1
         observation = env.reset_environment()
         cummulative_reward = 0
         non_step_condition = update_condition(args.max_train_steps)
@@ -102,13 +102,13 @@ def main():
             REIN.update_on_transition(observation, np.array(action),
                                     reward, new_observation, done)
             if done:
-                scores_window.append(cummulative_reward)
+                scores.append(cummulative_reward)
                 break
             observation = new_observation
         REIN.train()
         #if checkpoint_save_condition():
         #    REIN.save_checkpoint()
-        print("Episode " + str(i_episode) + " Average_score " + str(np.mean(scores_window)))
+        print("Episode " + str(episode) + " avg_score " + str(np.mean(scores)))
 
 if __name__ == "__main__":
     main()

@@ -85,18 +85,18 @@ class reinforce:
         ## If these action probability is fetching us less reward, then these
         ## will be penalized and network parameters will update accordingly.
         self.policy_prob = self.model_policy['output_prob']
-        self.action_prob_pred = tf.reduce_sum(self.policy_prob*self.action_one_hot, 1)
+        self.action_prob=tf.reduce_sum(self.policy_prob*self.action_one_hot,1)
         # we sample from from this distribution and create our episode dataset
         # We assume multinomial distribution parametrized by probability weights
         self.sampled_actions = tf.squeeze(tf.multinomial(self.policy_prob, 1))
 
         # The reward will be cummulative rewards for whole episode.
         # We will calculate this reward outside tensorflow graph and feed it.
-        self.reward = tf.placeholder(tf.float32, shape = [None], name = 'reward')
+        self.reward = tf.placeholder(tf.float32, shape = [None], name ='reward')
         # Instead of computing and applying the gradient seperately (accent),
         # We do gradient decent on the negative log(p(a/s))*R. This translates
         # to gradient accent on the probability mass function approximator param
-        self.loss = tf.reduce_mean(-tf.log(self.action_prob_pred)*self.reward)
+        self.loss = tf.reduce_mean(-tf.log(self.action_pred)*self.reward)
         optimizer = tf.train.AdamOptimizer(self.learning_rate)
         self.train_ops = optimizer.minimize(self.loss)
 
@@ -138,7 +138,8 @@ class reinforce:
         s, a, s_, r, t = self.buffer.get_buffer()
         # Gamma weighting is to reduce the variance
         discount_coefficient = np.array([self.gamma**i for i in range(len(r))])
-        trajectory_reward = sum(np.array([d*r for d,r in zip(discount_coefficient, r)]))
+        trajectory_reward = sum(np.array([d*r
+                                for d,r in zip(discount_coefficient, r)]))
         feed_dict = {
             self.current_observation: s,
             self.action: a,
