@@ -6,8 +6,9 @@ to change characteristics of environment, model and hyperparameters.
 
 Following algorithms are implemented:
 * Deep-Q network (Implemented)
+* Reinforce (Implemented)
 * Deep deterministic policy gradient (In progress)
-* Actro-Critic variants (In progress)
+* Actor-Critic (In progress)
 
 A detailed description of algorithm can be found in respective directories
 
