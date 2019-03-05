@@ -12,39 +12,23 @@ def argument_parser():
     parser.add_argument('--buffer_size', default = 0, type = int,
                     help = 'size of circuler buffer storing (s,a,r,s_,done) \
                             tuple')
-    parser.add_argument('--batch_size', default = 0, type = int,
-                    help = 'number of elements to train on at once')
-    parser.add_argument('--min_explore_prob', default = 0.01,
-                    type = float, help = 'minimum probability to randomly take \
-                                          action in epsilon-greedy search')
-    parser.add_argument('--max_explore_prob', default = 1.0,
-                    type = float, help = 'maximum probability to randomly take \
-                                          action in epsilon-greedy search')
-    parser.add_argument('--explore_prob_decay', default = 0.995,
-                    type = float, help = 'decay in probability to randomly \
-                                          take action in epsilon-greedy search')
     parser.add_argument('--max_train_steps', default = 1000, type = int,
                     help = 'maximum number of observation, -1 for infinity')
     parser.add_argument('--nr_episodes', default = 1000, type = int,
                     help = 'number of episodes to train the agent')
     parser.add_argument('--global_update_frequency', default = 1, type = int,
                     help = 'n_steps to take before updating the global network')
-    parser.add_argument('--local_update_frequency', default = 1, type = int,
-                    help = 'n_steps to take before updating the local network')
     parser.add_argument('--monitor_training', default = False, type = bool,
                     help = 'display the training environment')
-    parser.add_argument('--lr_rate', default = 0.01, type = float,
+    parser.add_argument('--lr_rate', default = 1e-2, type = float,
                     help = 'learning rate for training the local DQN network')
     parser.add_argument('--discount_factor', default = 1.0, type = float,
                     help = 'discount factor for reward calculation')
-    parser.add_argument('--weighting_factor', default = 0.0, type = float,
-                    help = 'weighting factor for reward calculation w.r.t. \
-                            pas reward')
     parser.add_argument('--log_path', default = 'checkpoint', type = str,
                     help = 'Path to save the logs and trained weights')
     parser.add_argument('--restore', default = True, type = bool,
                     help = 'Weather to restore the checkpoint or not')
-    parser.add_argument('--checkpoint_freq', default = 1000, type = int,
+    parser.add_argument('--checkpoint_freq', default = 100, type = int,
                     help = 'Number of episodes after which to save checkpoints')
     parser.add_argument('--test', default = False, type = bool,
                     help = 'Testing the agent')
@@ -96,7 +80,6 @@ def main():
         ## We run full episode once and collect the data (sequentially)
         while not non_step_condition():
             action = REIN.predict_action(np.expand_dims(observation, axis=0))
-            print(action)
             new_observation, reward, done, _ = env.take_action(np.array(action))
             cummulative_reward = cummulative_reward + reward
             REIN.update_on_transition(observation, np.array(action),
@@ -106,8 +89,8 @@ def main():
                 break
             observation = new_observation
         REIN.train()
-        #if checkpoint_save_condition():
-        #    REIN.save_checkpoint()
+        if checkpoint_save_condition():
+            REIN.save_checkpoint()
         print("Episode " + str(episode) + " avg_score " + str(np.mean(scores)))
 
 if __name__ == "__main__":

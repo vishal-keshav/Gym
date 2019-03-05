@@ -73,22 +73,14 @@ class reinforce:
                                 self.observation_shape, self.action_shape)
         with tf.variable_scope('policy_net'):
             self.model_policy = inference_graph_builder.build_model()
-
-        # Input to the density function approximator (conditional parameter)
-        self.current_observation = self.model_policy['input']
-
-        # The required is log(p(a/s)) i.e. we want probability of action given s
-        # And probability of all actions given the state. So, we mask with the a
-        # The action will be feeded from the collected data from episode
-        self.action = tf.placeholder(tf.int32, shape = [None], name = 'action')
-        self.action_one_hot = tf.one_hot(self.action, self.action_shape[-1])
+        self.state_placeholder = self.model_policy['input']
+        self.prob_out = self.model_policy['prob']
+        self.distribution = Categorical(probs = self.prob_out)
+        self.action = self.distribution.sample()
+        self.action_placeholder = tf.placeholder(tf.float32, shape = (None,1))
         ## If these action probability is fetching us less reward, then these
         ## will be penalized and network parameters will update accordingly.
-        self.policy_prob = self.model_policy['output_prob']
-        self.action_prob=tf.reduce_sum(self.policy_prob*self.action_one_hot,1)
-        # we sample from from this distribution and create our episode dataset
-        # We assume multinomial distribution parametrized by probability weights
-        self.sampled_actions = tf.squeeze(tf.multinomial(self.policy_prob, 1))
+        self.action_prob = self.distribution.log_prob(self.action_placeholder)
 
         # The reward will be cummulative rewards for whole episode.
         # We will calculate this reward outside tensorflow graph and feed it.
@@ -96,7 +88,9 @@ class reinforce:
         # Instead of computing and applying the gradient seperately (accent),
         # We do gradient decent on the negative log(p(a/s))*R. This translates
         # to gradient accent on the probability mass function approximator param
-        self.loss = tf.reduce_mean(-tf.log(self.action_pred)*self.reward)
+        #self.loss = tf.reduce_mean(-tf.log(self.action_pred)*self.reward)
+        self.loss = tf.math.reduce_sum(
+                                    -tf.diag_part(self.action_prob)*self.reward)
         optimizer = tf.train.AdamOptimizer(self.learning_rate)
         self.train_ops = optimizer.minimize(self.loss)
 
@@ -115,9 +109,9 @@ class reinforce:
         print("Q networks initialized.")
 
     def predict_action(self, s):
-        pred = self.sess.run(self.sampled_actions,
-                        feed_dict={self.current_observation: s})
-        return pred
+        action = self.sess.run(self.action,
+                        feed_dict={self.state_placeholder: s})
+        return action
 
     def update_on_transition(self, s, a, r, _s, t):
         self.nr_step = self.nr_step + 1
@@ -135,23 +129,19 @@ class reinforce:
         gard(log(probability))*R. This is cool. No need to use apply grad in TF.
         """
         # We get all data from deque
-        s, a, s_, r, t = self.buffer.get_buffer()
+        states, actions, s_, rewards, terminal = self.buffer.get_buffer()
         # Gamma weighting is to reduce the variance
-        discount_coefficient = np.array([self.gamma**i for i in range(len(r))])
-        trajectory_reward = sum(np.array([d*r
-                                for d,r in zip(discount_coefficient, r)]))
-        feed_dict = {
-            self.current_observation: s,
-            self.action: a,
-            self.reward: np.array([trajectory_reward]),
-        }
-        self.sess.run(self.train_ops, feed_dict = feed_dict)
+        discounts = [gamma**i for i in range(len(rewards)+1)]
+        R = sum([a*b for a,b in zip(discounts, rewards)])
+        feed_dict = {self.action_placeholder: np.array(actions),
+                     self.state_placeholder: np.array(states),
+                     self.rewards: rewards}
+        _ = sess.run(self.train_ops, feed_dict = feed_dict)
         self.buffer = Buffer(self.args.buffer_size)
         return
 
     def write_summary(self):
-        pass
-        """s, a, s_, r, t = self.buffer.get_buffer()
+        s, a, s_, r, t = self.buffer.get_buffer()
         feed_dict = {
             self.current_observation: s,
             self.action: np.squeeze(a),
@@ -161,7 +151,7 @@ class reinforce:
         }
         summary = self.sess.run(self.summary_op, feed_dict = feed_dict)
         self.writer.add_summary(summary, self.nr_episode)
-        self.nr_episode = self.nr_episode + 1"""
+        self.nr_episode = self.nr_episode + 1
 
     def save_checkpoint(self):
         save_path = self.saver.save(self.sess, self.chk_name)
