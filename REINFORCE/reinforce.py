@@ -4,6 +4,7 @@ from collections import deque
 from collections import namedtuple
 
 import tensorflow as tf
+from tensorflow.distributions import Categorical
 import numpy as np
 
 import model_builder
@@ -74,7 +75,7 @@ class reinforce:
         with tf.variable_scope('policy_net'):
             self.model_policy = inference_graph_builder.build_model()
         self.state_placeholder = self.model_policy['input']
-        self.prob_out = self.model_policy['prob']
+        self.prob_out = self.model_policy['output_prob']
         self.distribution = Categorical(probs = self.prob_out)
         self.action = self.distribution.sample()
         self.action_placeholder = tf.placeholder(tf.float32, shape = (None,1))
@@ -84,7 +85,7 @@ class reinforce:
 
         # The reward will be cummulative rewards for whole episode.
         # We will calculate this reward outside tensorflow graph and feed it.
-        self.reward = tf.placeholder(tf.float32, shape = [None], name ='reward')
+        self.reward = tf.placeholder(tf.float32, shape = (), name ='reward')
         # Instead of computing and applying the gradient seperately (accent),
         # We do gradient decent on the negative log(p(a/s))*R. This translates
         # to gradient accent on the probability mass function approximator param
@@ -106,11 +107,10 @@ class reinforce:
             print("session restored")
         else:
             self.writer.add_graph(self.sess.graph)
-        print("Q networks initialized.")
+        print("Reinforce networks initialized.")
 
     def predict_action(self, s):
-        action = self.sess.run(self.action,
-                        feed_dict={self.state_placeholder: s})
+        action = self.sess.run(self.action,feed_dict={self.state_placeholder:s})
         return action
 
     def update_on_transition(self, s, a, r, _s, t):
@@ -131,12 +131,12 @@ class reinforce:
         # We get all data from deque
         states, actions, s_, rewards, terminal = self.buffer.get_buffer()
         # Gamma weighting is to reduce the variance
-        discounts = [gamma**i for i in range(len(rewards)+1)]
+        discounts = [self.gamma**i for i in range(len(rewards)+1)]
         R = sum([a*b for a,b in zip(discounts, rewards)])
         feed_dict = {self.action_placeholder: np.array(actions),
                      self.state_placeholder: np.array(states),
-                     self.rewards: rewards}
-        _ = sess.run(self.train_ops, feed_dict = feed_dict)
+                     self.reward: R}
+        _ = self.sess.run(self.train_ops, feed_dict = feed_dict)
         self.buffer = Buffer(self.args.buffer_size)
         return
 

@@ -42,18 +42,20 @@ class SimpleNet:
             self.network['h_fc1'] = tf.nn.relu(tf.matmul(
                                         self.input, W_fc1) + b_fc1)
         with tf.name_scope("layer_2"):
-            W_fc2 = self.weight_variable([16, 16])
-            b_fc2 = self.bias_variable([16])
-            self.network['h_fc2'] = tf.nn.relu(tf.matmul(
-                                        self.network['h_fc1'], W_fc2) + b_fc2)
+            shape = self.output_shape[-1]
+            W_fc2 = self.weight_variable([16, shape])
+            b_fc2 = self.bias_variable([shape])
+            self.network['logits'] = tf.matmul(
+                                        self.network['h_fc1'], W_fc2) + b_fc2
+            self.network['prob'] = tf.nn.softmax(self.network['logits'])
 
-        with tf.name_scope("layer_3"):
+        """with tf.name_scope("layer_3"):
             shape = self.output_shape[-1]
             W_fc3 = self.weight_variable([16, shape])
             b_fc3 = self.bias_variable([shape])
             self.network['logits'] = tf.matmul(
                                         self.network['h_fc2'], W_fc3) + b_fc3
-            self.network['prob'] = tf.nn.softmax(self.network['logits'])
+            self.network['prob'] = tf.nn.softmax(self.network['logits'])"""
 
     def weight_variable(self, shape):
         with tf.name_scope("weight"):

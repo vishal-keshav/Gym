@@ -14,7 +14,7 @@ def argument_parser():
                             tuple')
     parser.add_argument('--max_train_steps', default = 1000, type = int,
                     help = 'maximum number of observation, -1 for infinity')
-    parser.add_argument('--nr_episodes', default = 1000, type = int,
+    parser.add_argument('--nr_episodes', default = 3000, type = int,
                     help = 'number of episodes to train the agent')
     parser.add_argument('--global_update_frequency', default = 1, type = int,
                     help = 'n_steps to take before updating the global network')
@@ -80,7 +80,7 @@ def main():
         ## We run full episode once and collect the data (sequentially)
         while not non_step_condition():
             action = REIN.predict_action(np.expand_dims(observation, axis=0))
-            new_observation, reward, done, _ = env.take_action(np.array(action))
+            new_observation, reward, done, _ = env.take_action(action[0])
             cummulative_reward = cummulative_reward + reward
             REIN.update_on_transition(observation, np.array(action),
                                     reward, new_observation, done)
